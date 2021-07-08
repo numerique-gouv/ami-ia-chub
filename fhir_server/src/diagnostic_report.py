@@ -44,6 +44,48 @@ def get_doccat_label_by_doclabel(doc_label, default_value=""):
     return default_value
 
 
+@lru_cache()
+def _get_request_2():
+    """
+    Get and cache metadata search linking documents and their domain
+    NO DATA RETURNED...
+
+    :return: pd.Frame
+    """
+    server = SparqlDB()
+    query_diag = """prefix skos: <http://www.w3.org/2004/02/skos/core#>
+                    select * where {
+                        ?conceptCDuri <http://chu-bordeaux.fr/m2sitis/iso11179-3/mdr.owl#hasSource> ?source ;
+                            skos:prefLabel ?conceptCD .
+                        ?source a <http://chu-bordeaux.fr/document#document> ;       
+                            skos:prefLabel ?documentLabel ;
+                            skos:broader ?parentNode .
+                        ?parentNode skos:prefLabel ?categorie           
+                    }"""
+    res = server.load_data(query_diag)
+    hashed_map = {}
+    for b in res['results']['bindings']:
+        hashed_map[b['conceptCD']['value']] = {
+            'code': b['parentNode']['value'],
+            'display': b['categorie']['value']
+        }
+    return hashed_map
+
+
+def get_docdomain_by_conceptcd(doc_conceptcd):
+    """
+    look for a document "domain" by its concept_cd via _get_request_2()
+
+    :param doc_label: str
+    :param default_value: value to return if not found
+    :return: str
+    """
+    res = _get_request_2()
+    if doc_conceptcd in res:
+        return res[doc_conceptcd]
+    return {"code": "UNKNOWN_CODE", "display": "UNKNOWN_DOMAIN"}
+
+
 def get_report_for_patient(patient_num):
     """
     searches diagnostic reports for a given patient
@@ -88,9 +130,10 @@ def _process_report_request(sql_statement):
         # category attribute
         cc_category = fhir_cod_concept_mod.CodeableConcept()
         coding_categ = fhir_coding_mod.Coding()
+        domain = get_docdomain_by_conceptcd(row['CONCEPT_CD'])
         coding_categ.system = "https://eds.chu-bordeaux.fr/fhir/document-domain"
-        coding_categ.code = "https://eds.chu-bordeaux.fr/fhir/document-domain/1"
-        coding_categ.display = "Document de sortie"
+        coding_categ.code = domain['code']
+        coding_categ.display = domain['display']
         cc_category.coding = [coding_categ]
         diagnosticReport.category = cc_category
         # subject attribute

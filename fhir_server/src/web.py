@@ -86,10 +86,16 @@ def get_patient(patient_num):
                         patient.get_patient, patient_num)
 
 
+@app.route('/patients/<patient_num>/encounters')
+def get_encounters_patient(patient_num):
+    return process_data(f"Encounters for PATIENT_NUM = {patient_num}",
+                        encounter.get_encounter_by_patient, patient_num)
+
+
 @app.route('/encounters/<encounter_num>')
 def get_encounter(encounter_num):
     return process_data(f"Encounter with ENCOUNTER_NUM = {encounter_num}",
-                        encounter.get_encounter, encounter_num)
+                        encounter.get_encounter_by_num, encounter_num)
 
 
 @app.route('/patients/<patient_num>/labResults')
@@ -181,8 +187,10 @@ if __name__ == "__main__":
         logger.info('Preloading metadata...')
         logger.info('       for observations')
         observation._get_request_1()
+        observation._get_request_2()
         logger.info('       for diagnostic reports')
         diagnostic_report._get_request_1()
+        diagnostic_report._get_request_2()
         logger.info('       for medication administrations')
         medicationAdministration._get_request_1()
         logger.info('       for procedures')
@@ -196,9 +204,10 @@ if __name__ == "__main__":
         questionnaireResponse._get_request_2()
         questionnaireResponse._get_request_3()
         questionnaireResponse._get_request_4()
+        questionnaireResponse._get_request_5()
         logger.info('       for bacteriology')
         bacteriologie._get_request_1()
         bacteriologie._get_request_2()
 
     logger.info('Starting FHIR API')
-    app.run()
+    app.run(host= '0.0.0.0')

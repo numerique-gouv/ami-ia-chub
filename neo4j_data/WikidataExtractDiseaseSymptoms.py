@@ -12,6 +12,7 @@ import pandas as pd
 import os
 import yaml
 import logging.config
+import unidecode
 
 
 def main():
@@ -107,6 +108,7 @@ def main():
 
         # add the CUIs to the data frame
         symptoms['CUI'] = symptoms['wikidata'].map(symptoms_cui_dict)
+        symptoms['CUI'] = symptoms['CUI'].fillna('').apply(lambda l: ";".join(l)).apply(lambda v: v if v else 'n/a')
 
 
         ############################
@@ -134,12 +136,12 @@ def main():
         # fill the column with the synonyms
         for idx, row in symptoms.iterrows():
             # do not consider nan values
-            if type(row['CUI']) == list:
+            if row['CUI']:
                 synonyms = []
-                for cui in row['CUI']:
+                for cui in row['CUI'].split(';'):
                     if cui in synonyms_dict.keys():
                         synonyms += synonyms_dict[cui]
-                symptoms.at[idx, 'synonyms'] = synonyms
+                symptoms.at[idx, 'synonyms'] = ";".join(synonyms)
 
         # add weights according to the number of appearances of a symptom in the links
         # a symptom that appears in many diseases has a low weight, a symptom that appears once or twice has a higher weight
@@ -148,10 +150,15 @@ def main():
         symptoms['weight'] = symptoms['wikidata'].map(symptoms_weights)
 
         # replace empty lists with n/a
-        symptoms['synonyms'] = symptoms['synonyms'].replace('[]', 'n/a')
+        symptoms['synonyms'] = symptoms['synonyms'].replace('', 'n/a')
 
         # replace nan values with empty strings
         symptoms.fillna('n/a', inplace=True)
+
+        # add unidecode versions of all
+        symptoms['prefLabel_processed'] = symptoms['prefLabel'].apply(unidecode.unidecode).apply(str.lower)
+        symptoms['synonyms_processed'] = symptoms['synonyms'].apply(unidecode.unidecode).apply(str.lower)
+
 
         # save to csv file
         logger.debug(f'saving to {symptoms_output_file}')

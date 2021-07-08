@@ -46,6 +46,53 @@ def get_bio_result_label_from_concept_cd(concept_cd, default_value=""):
     return default_value
 
 
+@lru_cache()
+def _get_request_2():
+    """
+    Get and cache metadata search linking drug biological results and domains
+
+    NO DOMAIN RETURNED...
+
+    :return: pd.Frame
+    """
+    server = SparqlDB()
+    bio_result = """prefix skos: <http://www.w3.org/2004/02/skos/core#>
+                    select * where {
+                        ?biology <http://chu-bordeaux.fr/m2sitis/iso11179-3/mdr.owl#hasTarget> ?conceptCDuri ;
+                            rdf:type <http://chu-bordeaux.fr/biologie-dxcare-num#biologicalResult> ;
+                            skos:prefLabel ?label .
+                        ?conceptCDuri skos:prefLabel ?conceptCD .
+                        OPTIONAL { # certains resultats n'ont pas de categorie
+                            ?biology <http://chu-bordeaux.fr/biologie-dxcare-num#resultInCategory> ?categorie .
+                        ?categorie <http://chu-bordeaux.fr/biologie-dxcare-num#categoryInCategory> ?biologicalCategory .
+                        ?biologicalCategory <http://chu-bordeaux.fr/biologie-dxcare-num#categoryInDomain> ?categorieDomain .
+                        ?categorieDomain skos:prefLabel ?domaine  .
+                        }
+                    }"""
+    res = server.load_data(bio_result)
+    hashed_map = {}
+    for b in res['results']['bindings']:
+        if 'domaine' in b:
+            hashed_map[b['conceptCD']['value']] = {
+                'code': b['categorieDomain']['value'],
+                'display': b['domaine']['value']
+            }
+    return hashed_map
+
+
+def get_bio_domain_from_concept_cd(concept_cd):
+    """
+    look for a bio domain by its concept_cd via _get_request_2()
+
+    :param concept_cd: str
+    :return: str
+    """
+    res = _get_request_2()
+    if concept_cd in res:
+        return res[concept_cd]
+    return {'code': 'UNKNOWN_CODE', 'display': 'UNKNOWN_DOMAIN'}
+
+
 def get_obs_for_patient(patient_num):
     """
     searches observations for a given patient
@@ -90,8 +137,10 @@ def _process_obs_request(sql_statement):
         # category attribute
         cc_category = fhir_cod_concept_mod.CodeableConcept()
         coding_categ = fhir_coding_mod.Coding()
+        domain = get_bio_domain_from_concept_cd(row['CONCEPT_CD'])
         coding_categ.system = "https://eds.chu-bordeaux.fr/fhir/bio-category"
-        coding_categ.code = str(row["CONCEPT_CD"]).replace(".0","")
+        coding_categ.code = domain['code']
+        coding_categ.display = domain['display']
         cc_category.coding = [coding_categ]
         observation.category = [cc_category]
         # subject attribute

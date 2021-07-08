@@ -36,12 +36,12 @@ CONTAINER=starclay/fhir_api_server:latest
 
 APP_LOG_LEVEL=DEBUG
 
-POSTGRESQL_HOST="localhost:5432"
+POSTGRESQL_HOST="192.168.222.204:5432"
 POSTGRESQL_DBNAME="chu-bordeaux"
-POSTGRESQL_USER="admin"
-POSTGRESQL_PWD="admin"
+POSTGRESQL_USER="ghpsj"
+POSTGRESQL_PWD="starclay2018"
 
-SPARQL_HOST="http://localhost:8888/sparql-endpoint"
+SPARQL_HOST="http://192.168.222.218:8888/sparql-endpoint"
 
 
 if [[ "${RUN_BASH}" -eq "1" ]]; then
@@ -57,7 +57,7 @@ if [[ "${RUN_BASH}" -eq "1" ]]; then
 else
     docker run \
             -p $PORT:5000 \
-            --network="host" \
+            --network="bridge" \
             -e APP_LOG_LEVEL=${APP_LOG_LEVEL} \
             -e POSTGRESQL_HOST=${POSTGRESQL_HOST} \
             -e POSTGRESQL_DBNAME=${POSTGRESQL_DBNAME} \

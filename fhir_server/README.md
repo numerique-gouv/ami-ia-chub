@@ -19,6 +19,8 @@ Les points API disponibles sont:
     -> fhir.Patient
 - /encounters/<encounter_num> - GET
     -> fhir.Encounter
+- /patients/<patient_num>/encounters - GET 
+    -> \[fhir.Encounter\]
 - /patients/<patient_num>/labResults - GET
     -> \[fhir.Observation\]
 - /encounters/<encounter_num>/labResults - GET

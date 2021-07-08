@@ -4,6 +4,7 @@ import pandas as pd
 import yaml
 import os
 import logging.config
+import unidecode
 
 
 def main():
@@ -58,6 +59,7 @@ def main():
         for elt in endpoint_data:
             specialties = specialties.append({'diseaseWikidata': elt['disease']['value'].split('/')[-1],
                                               'label': elt['label']['value'],
+                                              'label_processed': unidecode.unidecode(elt['label']['value']).lower(),
                                               'wikidata': elt['spe']['value'].split('/')[-1]},
                                              ignore_index=True)
 

@@ -65,6 +65,12 @@ class QuestionnaireResponseTest(unittest.TestCase):
             self.assertIn('authored', res)
             self.assertIsInstance(datetime_fromisoformat(res['authored']), datetime)
 
+            self.assertIn('context', res)
+            self.assertIn('reference', res['context'])
+            self.assertIn('display', res['context'])
+
+            self.assertIn('id', res)
+
             def _rec_item(current):
                 self.assertIn('linkId', current)
                 self.assertIn('text', current)
@@ -87,7 +93,7 @@ class QuestionnaireResponseTest(unittest.TestCase):
                             return True
                         return False
                     else:
-                        self.assertTrue('QUESTION' in current['linkId'])
+                        self.assertTrue('QUESTION' in current['definition'])
                         return True
 
             self.assertIn('item', res)

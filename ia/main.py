@@ -23,7 +23,7 @@ def main():
     csv_dict = get_data_from_csv.get_data()
 
     # get data from the blazegraph
-    server = sparql.SPARQLServer('http://localhost:8888/sparql-endpoint')
+    server = sparql.SPARQLServer('http://192.168.222.218:8888/sparql-endpoint')
     bg_dict = get_data_from_bg.get_data(server)
 
     # merge the 2 annotations dictionaries

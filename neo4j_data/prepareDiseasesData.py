@@ -4,6 +4,7 @@ import yaml
 import os
 import logging.config
 import json
+import unidecode
 
 
 def main():
@@ -113,9 +114,16 @@ def main():
         logger.debug(f"Adding abbreviations")
         # add abbreviations
         final_diseases['abbreviation'] = final_diseases['ICD10'].map(abbreviations)
+        final_diseases['abbreviation'] = final_diseases['abbreviation'].fillna('').apply(lambda l: ";".join(l))
+        final_diseases['abbreviation'] = final_diseases['abbreviation'].apply(lambda l: l if l else 'n/a')
 
         # replace nan values with n/a
         final_diseases.fillna('n/a', inplace=True)
+        final_diseases['synonyms'] = final_diseases['synonyms'].apply(lambda v: v if v else 'n/a')
+
+        # add processed versions of names
+        final_diseases['diseaseName_processed'] = final_diseases['diseaseName'].apply(unidecode.unidecode).apply(str.lower)
+        final_diseases['synonyms_processed'] = final_diseases['synonyms'].apply(unidecode.unidecode).apply(str.lower)
 
         # save to csv file
         logger.debug(f'Saving to {diseases_output_file}')

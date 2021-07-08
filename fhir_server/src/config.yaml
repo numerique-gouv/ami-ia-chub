@@ -3,11 +3,11 @@ app:
   preload_metadata: True
 
 postgres_db:
-  host: localhost:5432
+  host: 192.168.222.204:5432
   db_name: chu-bordeaux
-  user: admin
-  pwd: admin
+  user: ghpsj
+  pwd: starclay2018
 
 sparql_db:
-  host: 'http://localhost:8888/sparql-endpoint'
+  host: 'http://192.168.222.218:8888/sparql-endpoint'
   use_metadata: True

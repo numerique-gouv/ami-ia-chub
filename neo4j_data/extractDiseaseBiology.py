@@ -4,6 +4,7 @@ import pymantic.sparql as sparql
 import os
 import yaml
 import logging.config
+import unidecode
 
 
 def main():
@@ -111,6 +112,9 @@ def main():
 
         # replace nan values with empty strings
         disease_bio_res.fillna('n/a', inplace=True)
+
+        # add unicode versions
+        disease_bio_res['NAME_CHAR_PROCESSED'] = disease_bio_res['NAME_CHAR'].apply(unidecode.unidecode).apply(str.lower)
 
         # save to csv file
         logging.debug(f"saving to {biology_output_file}")

@@ -33,7 +33,7 @@ if [[ "${RUN_GENERATE}" -eq "1" ]]; then
   START_COMMAND="generate_db"
 fi
 
-DOCKER_IMAGE_TAG="1.0.0"
+DOCKER_IMAGE_TAG="1.0.1"
 DOCKER_INSTANCE_NAME="chub-neo4j"
 
 # Ports Neo4j
@@ -47,7 +47,7 @@ FHIR_SERVER_PLUGINS_DIR=$HOME/neo4j/plugins
 
 # Neo4j AUTH
 FHIR_SERVER_NEO4J_LOGIN="neo4j"
-FHIR_SERVER_NEO4J_PWD="test"
+FHIR_SERVER_NEO4J_PWD="st@rclay2020"
 
 docker run \
     --name ${DOCKER_INSTANCE_NAME} \

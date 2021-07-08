@@ -9,11 +9,11 @@ def export_to_df(dbname, table):
     :return: A data frame containing
     """
 
-    PG_ACCESS_HOST = 'localhost'
+    PG_ACCESS_HOST = '192.168.222.204'
     PG_ACCESS_PORT = '5432'
     PG_ACCESS_DBNAME = dbname       # 'chu-bordeaux' pour obs_fact et 'ghpsj-v2' pour les 2 autres
-    PG_ACCESS_USER = 'admin'
-    PG_ACCESS_PASS = 'admin'
+    PG_ACCESS_USER = 'ghpsj'
+    PG_ACCESS_PASS = 'starclay2018'
 
     PG_ACCESS_URL = ('postgresql+psycopg2://'
                      + PG_ACCESS_USER + ':'

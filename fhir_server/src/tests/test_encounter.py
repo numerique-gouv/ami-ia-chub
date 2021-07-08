@@ -13,7 +13,6 @@ from src import web
 class EncounterTest(unittest.TestCase):
 
     def setUp(self):
-        self.end_point = '/encounters/{encounter_num}'
         self.app = None
         self.docker_adress = os.environ.get('TEST_DOCKER_ADRESS', None)
         if self.docker_adress is None:
@@ -31,44 +30,54 @@ class EncounterTest(unittest.TestCase):
     def test_ressource_ok(self):
         # When
         encounter_num = 22
-        response = self._get_route(self.end_point.format(encounter_num=22))
+        response = self._get_route(f'/encounters/{encounter_num}')
+        self.assertEqual(200, response.status_code)
+        self._check_ressource(response.json, encounter_num=encounter_num)
 
+        patient_id = 2
+        response = self._get_route(f'/patients/{patient_id}/encounters')
+        self.assertEqual(200, response.status_code)
+        [self._check_ressource(e, patient_id=patient_id) for e in response.json]
+
+    def _check_ressource(self, json_result, encounter_num=None, patient_id=None):
         # Then
         if self.verbose:
-            pprint(response.json)
+            pprint(json_result)
 
-        self.assertEqual(200, response.status_code)
-        self.assertIsInstance(response.json, dict)
+        self.assertIsInstance(json_result, dict)
 
-        fhir_encounter_mod.Encounter(jsondict=response.json)
+        fhir_encounter_mod.Encounter(jsondict=json_result)
 
-        self.assertEqual('Encounter', response.json['resourceType'])
-        self.assertEqual(str(encounter_num), response.json['id'])
-        self.assertIn('identifier', response.json)
-        for ident in response.json['identifier']:
+        self.assertEqual('Encounter', json_result['resourceType'])
+        if encounter_num is not None:
+            self.assertEqual(str(encounter_num), json_result['id'])
+        self.assertIn('identifier', json_result)
+        for ident in json_result['identifier']:
             self.assertIn('system', ident)
             self.assertIn('value', ident)
 
-        self.assertIn('status', response.json)
-        self.assertIn('period', response.json)
-        self.assertIn('start', response.json['period'])
-        self.assertIsInstance(datetime_fromisoformat(response.json['period']['start']), datetime)
-        self.assertIn('end', response.json['period'])
-        self.assertIsInstance(datetime_fromisoformat(response.json['period']['end']), datetime)
+        self.assertIn('status', json_result)
+        self.assertIn('period', json_result)
+        self.assertIn('start', json_result['period'])
+        self.assertIsInstance(datetime_fromisoformat(json_result['period']['start']), datetime)
+        self.assertIn('end', json_result['period'])
+        self.assertIsInstance(datetime_fromisoformat(json_result['period']['end']), datetime)
 
-        self.assertIn('type', response.json)
-        self.assertIsInstance(response.json['type'], list)
-        [self.assertIn('text', l) for l in response.json['type']]
+        self.assertIn('type', json_result)
+        self.assertIsInstance(json_result['type'], list)
+        [self.assertIn('text', l) for l in json_result['type']]
 
-        self.assertIn('subject', response.json)
-        self.assertIn('reference', response.json['subject'])
-        self.assertEqual('Patient/', response.json['subject']['reference'][:len('Patient/')])
+        self.assertIn('subject', json_result)
+        self.assertIn('reference', json_result['subject'])
+        self.assertEqual('Patient/', json_result['subject']['reference'][:len('Patient/')])
+        if patient_id is not None:
+            self.assertEqual(str(patient_id), json_result['subject']['reference'][len('Patient/'):])
 
-        self.assertIn('location', response.json)
-        self.assertGreaterEqual(len(response.json['location']), 1)
-        for location in response.json['location']:
+        self.assertIn('location', json_result)
+        self.assertGreaterEqual(len(json_result['location']), 1)
+        for location in json_result['location']:
             self.assertIn('location', location)
-            self.assertIn('reference', location['location'])
+            self.assertIn('display', location['location'])
             self.assertIn('period', location)
             self.assertIn('start', location['period'])
             self.assertIsInstance(datetime_fromisoformat(location['period']['start']), datetime)
@@ -77,10 +86,16 @@ class EncounterTest(unittest.TestCase):
 
     def test_ressource_failure(self):
         # When
-        response = self._get_route(self.end_point.format(encounter_num="test"))
+        response = self._get_route(f'/encounters/test')
         self.assertEqual(404, response.status_code)
 
-        response = self._get_route(self.end_point.format(encounter_num=''))
+        response = self._get_route(f'/encounters/')
+        self.assertEqual(404, response.status_code)
+
+        response = self._get_route(f'/patients/test/encounters')
+        self.assertEqual(404, response.status_code)
+
+        response = self._get_route(f'/patients//encounters')
         self.assertEqual(404, response.status_code)
 
     # def tearDown(self):

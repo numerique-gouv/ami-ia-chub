@@ -20,7 +20,7 @@ data:
     biologie_neo4j: biology.csv
 sources:
   chu:
-    blazegraph: http://localhost:8888/sparql-endpoint
+    blazegraph: http://192.168.222.218:8888/sparql-endpoint
   wikidata:
     main_url: https://www.wikidata.org/wiki/
     sparql: https://query.wikidata.org/sparql

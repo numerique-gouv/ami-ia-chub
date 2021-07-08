@@ -9,7 +9,7 @@
 #    - va récupérer dans les métadonnées les codes (ICD10, PMSI)
 #    - va récupérer dans les métadonnées les noms des maladies par le code ICD10
 #    - va récupérer les codes wikidata et UMLS à partir du code ICD10
-#    - sauvegarde dans *diseases.csv*
+#    - sauvegarde dans *diseases_intermediate.csv*
 python3 extractDiseasesAttributes.py
 
 #Since some of the medical entities (drugs, symptoms, specialties) are linked to diseases via the wikidata codes,
@@ -99,6 +99,8 @@ python3 WikidataExtractDiseaseDrugs.py
 #        - drugs.csv
 #        - mapping_wiki_icd10.csv
 #    - enrichit les diseases avec des codes wikidata scrappés dans mapping_wiki_icd10 (merge sur ICD10)
+#Generates :
+#    - diseases.csv
 python3 prepareDiseasesData.py
 
 

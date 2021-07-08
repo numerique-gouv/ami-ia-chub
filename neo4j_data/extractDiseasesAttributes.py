@@ -1,3 +1,6 @@
+import csv
+import json
+
 import pymantic.sparql as sparql
 import pandas as pd
 from pathlib import Path
@@ -139,7 +142,7 @@ def main():
         sub_umls.reset_index(drop=True, inplace=True)
 
         # exract a dict with CUI as codes and synonyms as values
-        synonyms_dict = sub_umls.groupby('CUI')['libelle'].apply(list).to_dict()
+        synonyms_dict = sub_umls.groupby('CUI')['libelle'].apply(list).apply(lambda l: ";".join(l)).to_dict()
 
         # add the synonyms column
         mapping['synonyms'] = mapping['UMLS'].map(synonyms_dict)

@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import yaml
 import logging.config
+import unidecode
 
 
 def main():
@@ -59,6 +60,8 @@ def main():
         # drop the duplicates
         medoc.drop_duplicates(inplace=True)
 
+        # add processed version of CISLabel
+        medoc['CISLabel_processed'] = medoc['CISLabel'].apply(unidecode.unidecode).apply(str.lower)
 
         # save to csv file
         logger.debug(f'saving to {medoc_output_file}')
@@ -73,6 +76,10 @@ def main():
         # drop the duplicates
         drugclass.drop_duplicates(inplace=True)
 
+        # add processed version of CISLabel
+        drugclass['CISLabel_processed'] = drugclass['CISLabel'].apply(unidecode.unidecode).apply(str.lower)
+        drugclass['drugClassLabel_processed'] = drugclass['drugClassLabel'].apply(unidecode.unidecode).apply(str.lower)
+
         # save to csv file
         logger.debug(f'saving to {drugclass_output_file}')
         drugclass.to_csv(Path(drugclass_output_file), sep="\t", index=False)
@@ -86,6 +93,10 @@ def main():
         # drop the duplicates
         ingredient.drop_duplicates(inplace=True)
 
+        # add processed version of CISLabel
+        ingredient['CISLabel_processed'] = ingredient['CISLabel'].apply(unidecode.unidecode).apply(str.lower)
+        ingredient['INlabel_processed'] = ingredient['INlabel'].apply(unidecode.unidecode).apply(str.lower)
+
         # save to csv file
         logger.debug(f'saving to {ingredient_output_file}')
         ingredient.to_csv(Path(ingredient_output_file), sep="\t", index=False)
@@ -98,6 +109,9 @@ def main():
 
         # drop the duplicates
         brand_name.drop_duplicates(inplace=True)
+
+        # add processed version of CISLabel
+        brand_name['CISLabel_processed'] = brand_name['CISLabel'].apply(unidecode.unidecode).apply(str.lower)
 
         # save to csv file
         logger.debug(f'saving to {brand_name_output_file}')

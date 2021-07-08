@@ -10,36 +10,7 @@ from utils.db_connect import PostgresqlDB
 from utils.utils import date_to_datetime, patient_num_to_ref
 
 
-def get_encounter(encounter_num):
-    """
-    Process encounter data for a given encounter
-
-    :param encounter_num: str
-    :return: fhirclient.models.encounter.Encounter()
-    """
-    connect_to_db = PostgresqlDB()
-    sql_statement = """
-        SELECT 
-            a."PATIENT_NUM",
-            a."ENCOUNTER_NUM", 
-            a."START_DATE",
-            a."END_DATE",
-            a."SOURCESYSTEM_CD",
-            a."UPLOAD_ID",
-            b."TYPE",
-            c."UAM",
-            c."START_DATE" as start_date,
-            c."END_DATE" as end_date
-        FROM 
-            visit_dimension a
-        INNER JOIN visit_type b
-        ON a."ENCOUNTER_NUM" = b."ENCOUNTER_NUM"
-        INNER JOIN visit_location c
-        ON a."ENCOUNTER_NUM" = c."ENCOUNTER_NUM"
-        WHERE a."ENCOUNTER_NUM" =
-         """ + encounter_num
-
-    data = connect_to_db.load_data(sql_statement)
+def format_encounter(data):
     if data.empty:
         raise ValueError()
 
@@ -77,7 +48,7 @@ def get_encounter(encounter_num):
 
         enc_location = fhir_encounter_mod.EncounterLocation()
         ref_location = fhir_ref_mod.FHIRReference()
-        ref_location.reference = data["UAM"].astype(str)[index]
+        ref_location.display = data["UAM"].astype(str)[index]
         enc_location.location = ref_location
         loc_startdate = fhir_date_mod.FHIRDate()
         loc_startdate.date = date_to_datetime(data["start_date"][index])
@@ -92,6 +63,75 @@ def get_encounter(encounter_num):
     return encounter.as_json()
 
 
+def get_encounter_by_num(encounter_num):
+    """
+    Process encounter data for a given encounter
+
+    :param encounter_num: str
+    :return: fhirclient.models.encounter.Encounter()
+    """
+    connect_to_db = PostgresqlDB()
+    sql_statement = """
+        SELECT 
+            a."PATIENT_NUM",
+            a."ENCOUNTER_NUM", 
+            a."START_DATE",
+            a."END_DATE",
+            a."SOURCESYSTEM_CD",
+            a."UPLOAD_ID",
+            b."TYPE",
+            c."UAM",
+            c."START_DATE" as start_date,
+            c."END_DATE" as end_date
+        FROM 
+            visit_dimension a
+        INNER JOIN visit_type b
+        ON a."ENCOUNTER_NUM" = b."ENCOUNTER_NUM"
+        INNER JOIN visit_location c
+        ON a."ENCOUNTER_NUM" = c."ENCOUNTER_NUM"
+        WHERE a."ENCOUNTER_NUM" =
+         """ + encounter_num
+
+    data = connect_to_db.load_data(sql_statement)
+    return format_encounter(data)
+
+
+def get_encounter_by_patient(patient_num):
+    """
+    Process encounter data for a given encounter
+
+    :param patient_num: str, patient id
+    :return: [fhirclient.models.encounter.Encounter()]
+    """
+    connect_to_db = PostgresqlDB()
+    sql_statement = """
+        SELECT 
+            a."PATIENT_NUM",
+            a."ENCOUNTER_NUM", 
+            a."START_DATE",
+            a."END_DATE",
+            a."SOURCESYSTEM_CD",
+            a."UPLOAD_ID",
+            b."TYPE",
+            c."UAM",
+            c."START_DATE" as start_date,
+            c."END_DATE" as end_date
+        FROM 
+            visit_dimension a
+        INNER JOIN visit_type b
+        ON a."ENCOUNTER_NUM" = b."ENCOUNTER_NUM"
+        INNER JOIN visit_location c
+        ON a."ENCOUNTER_NUM" = c."ENCOUNTER_NUM"
+        WHERE a."PATIENT_NUM" =
+         """ + patient_num
+
+    data = connect_to_db.load_data(sql_statement)
+    output = []
+    for _, g in data.groupby('ENCOUNTER_NUM'):
+        output.append(format_encounter(g.reset_index()))
+    return output
+
+
 # entry point for PySpark application
 if __name__ == '__main__':
     import yaml
@@ -102,4 +142,5 @@ if __name__ == '__main__':
     postgres_db = PostgresqlDB(None, **config['postgres_db'])
 
     import pprint
-    pprint.pprint(get_encounter('22'))
+    pprint.pprint(get_encounter_by_num('23'))
+    pprint.pprint(get_encounter_by_patient('2'))

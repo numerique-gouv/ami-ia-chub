@@ -276,9 +276,31 @@ def get_question_to_form_links(question):
     return link
 
 
-def add_questionid_to_questionnaire(question_id, questionlabel, questionnaire):
+def create_answer_item(response_id, val_type, val):
+    answer_item = fhir_quest_mod.QuestionnaireResponseItemAnswer()
+    if val_type == "N":
+        answer_item.valueDecimal = val
+    elif val_type == "T" or val_type == "B":
+        answer_item.valueString = str(val)  # .encode('ascii', 'ignore'))
+    else:
+        coding = fhir_coding_mod.Coding()
+        coding.system = "https://eds.chu-bordeaux.fr/DxCareForms"
+        coding.code = get_responselabel_by_responseid(response_id)
+        coding.display = get_questionnaire_response_label_by_responseid(response_id)
+        answer_item.valueCoding = coding
+    return answer_item
+
+
+def add_questionid_to_questionnaire(question_id, questionlabel, val_type, val, questionnaire):
     (question_labels, section_labels, page_labels, form_labels), _ = _get_request_4()
-    descending_links = list(reversed(get_question_to_form_links(question_id)))
+    try:
+        descending_links = list(reversed(get_question_to_form_links(question_id)))
+    except ValueError as e:
+        logging.getLogger('questionnaireResponse').warning(f'Could not place {question_id if question_id else questionlabel}: {e}')
+        descending_links = ['UNKNOWN_FORM', 'UNKNOWN_PAGE', question_id]
+        if not question_id:
+            descending_links[-1] = f'UNKNOWN_ID_{questionlabel}'
+
 
     items_idxs = []
     # form
@@ -288,11 +310,16 @@ def add_questionid_to_questionnaire(question_id, questionlabel, questionnaire):
     else:
         quest_item = fhir_quest_mod.QuestionnaireResponseItem()
         quest_item.linkId = descending_links[0]
-        quest_item.text = form_labels[descending_links[0]]
+        try:
+            quest_item.text = form_labels[descending_links[0]]
+        except KeyError:
+            quest_item.text = 'UNKNOWN_FORM_LABEL'
         quest_item.item = []
         questionnaire.item.append(quest_item)
+        questionnaire.context.append(0)     # hack to count nb of leafs in each form
         form_idx = len(questionnaire.item) - 1
     items_idxs.append(form_idx)
+    questionnaire.context[form_idx] += 1         # hack to count nb of leafs in each form
 
     # page
     pages = [elt.linkId for elt in questionnaire.item[form_idx].item]
@@ -301,7 +328,10 @@ def add_questionid_to_questionnaire(question_id, questionlabel, questionnaire):
     else:
         quest_item = fhir_quest_mod.QuestionnaireResponseItem()
         quest_item.linkId = descending_links[1]
-        quest_item.text = page_labels[descending_links[1]]
+        try:
+            quest_item.text = page_labels[descending_links[1]]
+        except KeyError:
+            quest_item.text = 'UNKNOWN_PAGE_LABEL'
         quest_item.item = []
         questionnaire.item[form_idx].item.append(quest_item)
         page_idx = len(questionnaire.item[form_idx].item) - 1
@@ -316,7 +346,10 @@ def add_questionid_to_questionnaire(question_id, questionlabel, questionnaire):
         else:
             quest_item = fhir_quest_mod.QuestionnaireResponseItem()
             quest_item.linkId = descending_links[i]
-            quest_item.text = section_labels[descending_links[i]]
+            try:
+                quest_item.text = section_labels[descending_links[i]]
+            except KeyError:
+                quest_item.text = 'UNKNOWN_SECTION_LABEL'
             quest_item.item = []
             start_item.item.append(quest_item)
             section_idx = len(start_item.item) - 1
@@ -335,8 +368,14 @@ def add_questionid_to_questionnaire(question_id, questionlabel, questionnaire):
         quest_item = fhir_quest_mod.QuestionnaireResponseItem()
         quest_item.definition = questionlabel
         quest_item.linkId = question_id
-        quest_item.text = question_labels[descending_links[-1]]
+        try:
+            quest_item.text = question_labels[descending_links[-1]]
+        except KeyError:
+            quest_item.text = descending_links[-1]
         quest_item.item = []
+        if val:
+            answer_item = create_answer_item(question_id, val_type, val)
+            quest_item.answer = [answer_item]
         start_item.item.append(quest_item)
         question_idx = len(start_item.item) - 1
     items_idxs.append(question_idx)
@@ -344,32 +383,78 @@ def add_questionid_to_questionnaire(question_id, questionlabel, questionnaire):
     return items_idxs
 
 
-def add_questionlabel_to_questionnaire(questionlabel, questionnaire):
+def add_questionlabel_to_questionnaire(questionlabel, val_type, val, questionnaire):
     question_id = get_question_id_by_questionlabel(questionlabel)
-    return add_questionid_to_questionnaire(question_id, questionlabel, questionnaire)
+    return add_questionid_to_questionnaire(question_id, questionlabel, val_type, val, questionnaire)
 
 
 def add_responselabel_to_questionnaire(responselabel, val_type, val, questionnaire):
     response_id = get_response_id_by_responselabel(responselabel)
     question_id = get_questionid_from_responseid(response_id)
-    items_idx = add_questionid_to_questionnaire(question_id, "", questionnaire)
+    items_idx = add_questionid_to_questionnaire(question_id, "", "", "", questionnaire)
     start_item = questionnaire
     for idx in items_idx:
         start_item = start_item.item[idx]
 
-    answer_item = fhir_quest_mod.QuestionnaireResponseItemAnswer()
-    coding = fhir_coding_mod.Coding()
-    coding.system = "https://eds.chu-bordeaux.fr/DxCareForms"
-    coding.code = get_responselabel_by_responseid(response_id)
-    coding.display = get_questionnaire_response_label_by_responseid(response_id)
-    answer_item.valueCoding = coding
-    if val_type == "N":
-        answer_item.valueDecimal = val
-    elif val_type == "T":
-        answer_item.valueString = str(val)  # .encode('ascii', 'ignore'))
+    answer_item = create_answer_item(response_id, val_type, val)
     if not start_item.answer:
         start_item.answer = []
     start_item.answer.append(answer_item)
+
+
+@lru_cache()
+def _get_request_5():
+    """
+    Get and cache metadata search linking responses and questions
+
+    :return: pd.Frame
+    """
+    server = SparqlDB()
+    qr_query = "SELECT * WHERE {\
+                    ?uriformulaire rdfs:label ?formulaireLabel. \
+                    ?uriformulaire <http://chu-bordeaux.fr/questionnaire-dxcare#formInCategory> ?formInCategory . \
+                    ?formInCategory <http://chu-bordeaux.fr/questionnaire-dxcare#categoryInProfession> ?uriFormProfession ; \
+                        rdfs:label ?categorieFormulaire . \
+                    ?uriFormProfession rdfs:label ?professionLabel }"
+
+    qr = server.load_data(qr_query)
+
+    # le résultat est une liste de tuples
+    # chaque tuple est de la forme (question_id, question_label, reponse_id, reponse_label)
+    formulaire_profession = {}
+    formulaire_category = {}
+    for b in qr['results']['bindings']:
+        formulaire_profession[b['uriformulaire']['value']] = {
+            'code': b['uriFormProfession']['value'],
+            'display': b['professionLabel']['value']
+        }
+        formulaire_category[b['uriformulaire']['value']] = {
+            'code': b['formInCategory']['value'],
+            'display': b['categorieFormulaire']['value']
+        }
+    return formulaire_profession, formulaire_category
+
+
+def get_profession_for_formUri(form_uri):
+    formulaire_profession, _ = _get_request_5()
+    try:
+        return formulaire_profession[form_uri]
+    except KeyError:
+        return {
+            'code': 'UNKNOWN_PROFESSION_URI',
+            'display': 'UNKNOWN_PROFESSION_LABEL'
+        }
+
+
+def get_category_for_formUri(form_uri):
+    _, formulaire_category = _get_request_5()
+    try:
+        return formulaire_category[form_uri]
+    except KeyError:
+        return {
+            'code': 'UNKNOWN_CATEGORY_URI',
+            'display': 'UNKNOWN_CATEGORY_LABEL'
+        }
 
 
 def get_quest_for_patient(patient_num):
@@ -413,6 +498,7 @@ def _process_quest_request(sql_statement):
             ident = fhir_id_mod.Identifier()
             ident.value = str(row["ENCOUNTER_NUM"]).replace(".0","") + "_" + str(row["INSTANCE_NUM"]).replace(".0","")
             questionnaireResponse.identifier = ident
+            questionnaireResponse.id = ident.value
             # status attribute
             questionnaireResponse.status = "completed"
             # subject attribute
@@ -429,22 +515,51 @@ def _process_quest_request(sql_statement):
             questionnaireResponse.authored = efdt
             #items
             questionnaireResponse.item = []
+            questionnaireResponse.context = []
             questionnaires[q_id] = questionnaireResponse
 
         try:
             qr = questionnaires[q_id]
+
+            val = ""
+            if row['VALTYPE_CD'] == "N":
+                val = row["NVAL_NUM"]
+            elif row['VALTYPE_CD'] == "T":
+                val = row["TVAL_CHAR"]
+            elif row['VALTYPE_CD'] == 'B':
+                val = row["OBSERVATION_BLOB"]  # .encode('ascii', 'ignore'))
+
             if "QUESTION" in str(row["CONCEPT_CD"]):
-                add_questionlabel_to_questionnaire(str(row["CONCEPT_CD"]), qr)
+                add_questionlabel_to_questionnaire(str(row["CONCEPT_CD"]), row['VALTYPE_CD'], val, qr)
             if "REPONSE" in str(row["CONCEPT_CD"]):
-                val = ""
-                if row['VALTYPE_CD'] == "N":
-                    val = row["NVAL_NUM"]
-                elif row['VALTYPE_CD'] == "T":
-                    val = str(row["OBSERVATION_BLOB"])  # .encode('ascii', 'ignore'))
                 add_responselabel_to_questionnaire(str(row["CONCEPT_CD"]), row['VALTYPE_CD'], val, qr)
         except ValueError as e:
             logging.getLogger('questionnaireResponse').warning(f'Could not place {str(row["CONCEPT_CD"])}: {e}')
             continue
+
+    for k, qr in questionnaires.items():
+        # Reorganise forms in the questionnaire by most leafs, and then push UNKNOWN_FORM to the end while keeping the sort
+        qr.item, qr.context = zip(*sorted(zip(qr.item, qr.context), key=lambda v: v[1], reverse=True))
+        questionnaires[k].item = [f for f in qr.item if f.linkId != 'UNKNOWN_FORM'] + [f for f in qr.item if f.linkId == 'UNKNOWN_FORM']
+        questionnaires[k].context = None
+
+        #questionnaire Entry: we get the associated profession for all forms in questionnaire
+        # if at least one is 1-Médical, we get this, else we take the profession for the first form (the most represented)
+        professions = [get_profession_for_formUri(f.linkId) for f in questionnaires[k].item]
+        categories = [get_category_for_formUri(f.linkId) for f in questionnaires[k].item]
+        if any(d['display'] == '1-Médical' for d in professions):
+            profession, categorie = [(p, c) for p, c in zip(professions, categories) if p['display'] == '1-Médical'][0]
+        else:
+            profession = professions[0]
+            categories_known = [c for c in categories if c['code'] != 'UNKNOWN_CATEGORY_URI']
+            if len(categories_known):
+                categorie = max(categories_known, key=categories_known.count)
+            else:
+                categorie = categories[0]
+
+        questionnaires[k].context = fhir_ref_mod.FHIRReference()
+        questionnaires[k].context.reference = profession['code'] + ' | ' + categorie['code']
+        questionnaires[k].context.display = profession['display'] + ' | ' + categorie['display']
 
     for qr in questionnaires.values():
         json_val = qr.as_json()
